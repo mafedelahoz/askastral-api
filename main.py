@@ -64,3 +64,14 @@ def get_emotional_prediction_by_position(planet_name: str, ra_deg: float) -> str
     prediction = planet_effects.get(zodiac_sign.lower(), mood_map.get("default"))
     
     return f"{planet_name.capitalize()} in {zodiac_sign}: {prediction}"
+
+# CORS Middleware
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

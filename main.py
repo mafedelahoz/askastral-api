@@ -15,7 +15,7 @@ def get_planet_position(planet_name: str):
         now = Time(datetime.utcnow())
         planet = get_body(planet_name.lower(), now, location)
 
-        ra_deg = planet.ra.deg  # Ascensión recta en grados
+        ra_deg = planet.ra.deg
 
         prediction = get_emotional_prediction_by_position(planet_name, ra_deg)
 

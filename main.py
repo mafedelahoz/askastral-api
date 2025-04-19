@@ -20,6 +20,9 @@ app.add_middleware(
 def root():
     return {"message": "🌌 Welcome to AskAstral API"}
 
+#This endpoint provides the current position of a specified planet in the sky.
+# It returns the planet's right ascension (RA), declination (Dec), distance from Earth, and its zodiac sign.
+# It also indicates whether the planet is in retrograde motion and provides an emotional prediction based on its position.
 @app.get("/planet/{planet_name}")
 def get_planet_position(planet_name: str):
     try:
@@ -50,13 +53,15 @@ def get_planet_position(planet_name: str):
     except Exception as e:
         return {"error": str(e)}
 
+#This endpoint provides a daily insight based on the positions of five planets: Mercury, Venus, Mars, Jupiter, and Saturn.
+# It calculates the right ascension (RA) of each planet, checks if they are in retrograde motion, and provides an emotional prediction based on their positions.
 @app.get("/daily-insight")
 def daily_insight():
     planets = ["mercury", "venus", "mars", "jupiter", "saturn"]
     location = EarthLocation.of_site("greenwich")
     now = Time(datetime.utcnow())
 
-    results = []
+    insights = []
 
     for planet_name in planets:
         try:
@@ -65,7 +70,9 @@ def daily_insight():
             retrograde = is_retrograde(planet_name, now)
             prediction = get_emotional_prediction_by_position(planet_name, ra_deg, retrograde)
 
-            results.append({
+            weight = get_influence_weight(planet_name, retrograde)
+
+            insights.append({
                 "planet": planet_name,
                 "zodiac_sign": prediction["sign"],
                 "retrograde": retrograde,
@@ -73,19 +80,29 @@ def daily_insight():
                     "summary": prediction["summary"],
                     "advice": prediction["advice"],
                     "vibe": prediction["vibe"]
-                }
+                },
+                "weight": weight
             })
         except Exception as e:
-            results.append({
+            insights.append({
                 "planet": planet_name,
-                "error": str(e)
+                "error": str(e),
+                "weight": 0
             })
+
+    strongest = sorted(insights, key=lambda x: x.get("weight", 0), reverse=True)[0]
 
     return {
         "timestamp": str(now),
-        "daily_insight": results
+        "most_influential": {
+            "planet": strongest["planet"],
+            "zodiac_sign": strongest.get("zodiac_sign"),
+            "retrograde": strongest.get("retrograde"),
+            "prediction": strongest.get("prediction")
+        }
     }
 
+#Converts the right ascension (RA) in degrees to a zodiac sign.
 def ra_to_zodiac_sign(ra_deg: float) -> str:
     signs = [
         "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
@@ -93,7 +110,9 @@ def ra_to_zodiac_sign(ra_deg: float) -> str:
     ]
     index = int((ra_deg % 360) / 30)
     return signs[index]
-
+#Calculates if a planet is in retrograde motion based on its position relative to Earth.
+#It uses the positions of the planet at two different times to determine the direction of its motion.
+#If the dot product of the planet's position vector and its velocity vector is negative, it indicates retrograde motion.
 def is_retrograde(planet_name: str, now: Time) -> bool:
     try:
         with solar_system_ephemeris.set("builtin"):
@@ -105,7 +124,23 @@ def is_retrograde(planet_name: str, now: Time) -> bool:
             return np.dot(earth_to_planet.cartesian.xyz, vel_vector.xyz) < 0
     except Exception:
         return False
+#Calculates the influence weight of a planet based on its name and whether it is in retrograde motion.
+#The weight is determined by a predefined base weight for each planet, and retrograde motion adds an additional weight.
+def get_influence_weight(planet: str, retrograde: bool) -> int:
+    base_weight = {
+        "mercury": 5,
+        "venus": 6,
+        "mars": 7,
+        "jupiter": 4,
+        "saturn": 4
+    }
+    weight = base_weight.get(planet.lower(), 3)
+    if retrograde:
+        weight += 3  # Retrograde amplifies introspective or disruptive potential
+    return weight
 
+#Provides an emotional prediction based on the planet's position in a specific zodiac sign.
+#It uses the right ascension (RA) of the planet and its retrograde status to determine the prediction.
 def get_emotional_prediction_by_position(planet_name: str, ra_deg: float, retrograde: bool) -> dict:
     zodiac_sign = ra_to_zodiac_sign(ra_deg)
 
